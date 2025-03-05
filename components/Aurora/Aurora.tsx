@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { Color, Mesh, Program, Renderer, Triangle } from "ogl";
 import { useEffect, useRef } from "react";
@@ -143,6 +143,7 @@ export default function Aurora(props: AuroraProps) {
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.canvas.style.backgroundColor = "transparent";
 
+    // eslint-disable-next-line prefer-const
     let program: Program | undefined;
 
     function resize() {
@@ -150,6 +151,7 @@ export default function Aurora(props: AuroraProps) {
       const width = ctn.offsetWidth;
       const height = ctn.offsetHeight;
       renderer.setSize(width, height);
+
       if (program) {
         program.uniforms.uResolution.value = [width, height];
       }
@@ -158,8 +160,8 @@ export default function Aurora(props: AuroraProps) {
 
     const geometry = new Triangle(gl);
     if (geometry.attributes.uv) {
-      // TypeScript may require a type assertion here.
-      delete (geometry.attributes as any).uv;
+      // Use a more specific type for the attributes object
+      delete (geometry.attributes as Record<string, unknown>).uv;
     }
 
     const colorStopsArray = colorStops.map((hex) => {
@@ -212,5 +214,10 @@ export default function Aurora(props: AuroraProps) {
     };
   }, [amplitude]);
 
-  return <div ref={ctnDom} className="w-full h-full" />;
+  return (
+    <div
+      ref={ctnDom}
+      className="w-full h-full"
+    />
+  );
 }
