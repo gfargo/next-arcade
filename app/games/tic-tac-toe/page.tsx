@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
 import { ArrowLeft, RefreshCw } from "lucide-react"
+import Link from "next/link"
+import { useEffect, useState } from "react"
 
 type Player = "X" | "O" | null
 
@@ -112,7 +112,7 @@ export default function TicTacToe() {
             <p className="text-xl mb-2">Tic-Tac-Toe</p>
             {!gameOver && <p>Current player: {currentPlayer}</p>}
             {winner && <p className="text-yellow-400">Winner: {winner}</p>}
-            {gameOver && !winner && <p className="text-yellow-400">It's a draw!</p>}
+            {gameOver && !winner && <p className="text-yellow-400">It&apos;s a draw!</p>}
           </div>
 
           <div className="grid grid-cols-3 gap-2 max-w-[200px] mx-auto">

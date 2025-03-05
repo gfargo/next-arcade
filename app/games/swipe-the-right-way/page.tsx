@@ -2,14 +2,14 @@
 
 import type React from "react"
 
-import { useState, useEffect, useCallback, useRef } from "react"
-import Link from "next/link"
-import { ArrowLeft, RefreshCw, ArrowUp, ArrowDown, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RefreshCw } from "lucide-react"
+import Link from "next/link"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 const GAME_DURATION = 30 // seconds
-const INITIAL_INTERVAL = 2000 // 2 seconds
-const MIN_INTERVAL = 500 // 0.5 seconds
+const INITIAL_DIRECTION_INTERVAL = 2000 // 2 seconds
+const MIN_DIRECTION_INTERVAL = 500 // 0.5 seconds
 const INTERVAL_DECREASE = 100 // 0.1 seconds
 
 type Direction = "up" | "down" | "right"
@@ -22,12 +22,17 @@ export default function SwipeTheRightWay() {
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION)
   const [currentDirection, setCurrentDirection] = useState<Direction | null>(null)
   const [loading, setLoading] = useState(true)
-  const [interval, setInterval] = useState(INITIAL_INTERVAL)
-
+  const [directionInterval, setDirectionInterval] = useState(INITIAL_DIRECTION_INTERVAL)
+  
   const containerRef = useRef<HTMLDivElement>(null)
   const startX = useRef(0)
   const startY = useRef(0)
+  // Track the timestamp from requestAnimationFrame for timing
+  const lastTimerUpdateRef = useRef<number>(0)
+  const lastDirectionUpdateRef = useRef<number>(0)
+  const animationFrameRef = useRef<number | null>(null)
 
+  // Load high score on mount
   useEffect(() => {
     const storedHighScore = localStorage.getItem("swipeTheRightWayHighScore")
     if (storedHighScore) {
@@ -48,37 +53,79 @@ export default function SwipeTheRightWay() {
     setGameOver(false)
     setScore(0)
     setTimeLeft(GAME_DURATION)
-    setInterval(INITIAL_INTERVAL)
+    setDirectionInterval(INITIAL_DIRECTION_INTERVAL)
+    // Reset timestamps - we'll initialize them properly in the first game loop
+    lastTimerUpdateRef.current = 0
+    lastDirectionUpdateRef.current = 0
     generateDirection()
   }, [generateDirection])
 
+  // Game loop using requestAnimationFrame
   useEffect(() => {
-    if (gameStarted && !gameOver) {
-      const timer = setInterval(() => {
+    if (!gameStarted || gameOver) {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current)
+        animationFrameRef.current = null
+      }
+      return
+    }
+
+    const gameLoop = (timestamp: number) => {
+      // Use the timestamp provided by requestAnimationFrame for more accurate timing
+      // This is more precise than Date.now() and aligned with the browser's render cycle
+      
+      // First game loop iteration, initialize timestamps
+      if (lastTimerUpdateRef.current === 0) {
+        lastTimerUpdateRef.current = timestamp
+        lastDirectionUpdateRef.current = timestamp
+      }
+      
+      // Update game timer every second
+      if (timestamp - lastTimerUpdateRef.current >= 1000) {
+        lastTimerUpdateRef.current = timestamp
+        
         setTimeLeft((prevTime) => {
-          if (prevTime <= 1) {
-            clearInterval(timer)
+          const newTime = prevTime - 1
+          if (newTime <= 0) {
             setGameOver(true)
             return 0
           }
-          return prevTime - 1
+          return newTime
         })
-      }, 1000)
-
-      return () => clearInterval(timer)
-    }
-  }, [gameStarted, gameOver])
-
-  useEffect(() => {
-    if (gameStarted && !gameOver) {
-      const directionTimer = setInterval(() => {
+      }
+      
+      // Update direction based on current interval
+      if (timestamp - lastDirectionUpdateRef.current >= directionInterval) {
+        lastDirectionUpdateRef.current = timestamp
         generateDirection()
-        setInterval((prevInterval) => Math.max(prevInterval - INTERVAL_DECREASE, MIN_INTERVAL))
-      }, interval)
-
-      return () => clearInterval(directionTimer)
+        setDirectionInterval(prevInterval => 
+          Math.max(prevInterval - INTERVAL_DECREASE, MIN_DIRECTION_INTERVAL)
+        )
+      }
+      
+      // Continue the loop if game is still active
+      if (!gameOver) {
+        animationFrameRef.current = requestAnimationFrame(gameLoop)
+      }
     }
-  }, [gameStarted, gameOver, generateDirection, interval])
+    
+    animationFrameRef.current = requestAnimationFrame(gameLoop)
+    
+    // Clean up animation frame on unmount or when game state changes
+    return () => {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [gameStarted, gameOver, directionInterval, generateDirection])
+
+  // Persist high score when game ends
+  useEffect(() => {
+    if (gameOver && score > highScore) {
+      setHighScore(score)
+      localStorage.setItem("swipeTheRightWayHighScore", score.toString())
+    }
+  }, [gameOver, score, highScore])
 
   const handleSwipe = useCallback(
     (direction: Direction) => {
@@ -90,16 +137,19 @@ export default function SwipeTheRightWay() {
         playSound("incorrect")
       }
       generateDirection()
+      lastDirectionUpdateRef.current = Date.now() // Reset direction timer after user input
     },
     [currentDirection, generateDirection],
   )
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (!gameStarted || gameOver) return
     startX.current = e.touches[0].clientX
     startY.current = e.touches[0].clientY
   }
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!gameStarted || gameOver) return
     const endX = e.changedTouches[0].clientX
     const endY = e.changedTouches[0].clientY
     const deltaX = endX - startX.current
@@ -119,11 +169,13 @@ export default function SwipeTheRightWay() {
   }
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (!gameStarted || gameOver) return
     startX.current = e.clientX
     startY.current = e.clientY
   }
 
   const handleMouseUp = (e: React.MouseEvent) => {
+    if (!gameStarted || gameOver) return
     const endX = e.clientX
     const endY = e.clientY
     const deltaX = endX - startX.current
@@ -143,18 +195,13 @@ export default function SwipeTheRightWay() {
   }
 
   const playSound = (type: "correct" | "incorrect") => {
-    const audio = new Audio(type === "correct" ? "/sounds/correct.mp3" : "/sounds/incorrect.mp3")
-    audio.play()
-  }
-
-  useEffect(() => {
-    if (gameOver) {
-      if (score > highScore) {
-        setHighScore(score)
-        localStorage.setItem("swipeTheRightWayHighScore", score.toString())
-      }
+    try {
+      const audio = new Audio(type === "correct" ? "/sounds/correct.mp3" : "/sounds/incorrect.mp3")
+      audio.play().catch(err => console.error("Could not play sound", err))
+    } catch (error) {
+      console.error("Error playing sound:", error)
     }
-  }, [gameOver, score, highScore])
+  }
 
   if (loading) {
     return (
@@ -249,4 +296,3 @@ export default function SwipeTheRightWay() {
     </div>
   )
 }
-

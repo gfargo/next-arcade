@@ -1,171 +1,188 @@
-"use client"
-import { useState, useEffect, useCallback, useRef } from "react"
-import Link from "next/link"
-import { ArrowLeft, RefreshCw } from "lucide-react"
-import { Button } from "@/components/ui/button"
+"use client";
 
-const CELL_SIZE = 20
-const MAZE_WIDTH = 15
-const MAZE_HEIGHT = 15
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+const CELL_SIZE = 20;
+const MAZE_WIDTH = 15;
+const MAZE_HEIGHT = 15;
 
 type Position = {
-  x: number
-  y: number
-}
+  x: number;
+  y: number;
+};
 
 export default function MirrorMaze() {
-  const [playerPos, setPlayerPos] = useState<Position>({ x: 1, y: 1 })
-  const [maze, setMaze] = useState<number[][]>([])
-  const [gameState, setGameState] = useState<"playing" | "won">("playing")
-  const [loading, setLoading] = useState(true)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [playerPos, setPlayerPos] = useState<Position>({ x: 1, y: 1 });
+  const [maze, setMaze] = useState<number[][]>([]);
+  const [gameState, setGameState] = useState<"playing" | "won">("playing");
+  const [loading, setLoading] = useState(true);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const generateMaze = useCallback(() => {
     const newMaze = Array(MAZE_HEIGHT)
       .fill(0)
-      .map(() => Array(MAZE_WIDTH).fill(1))
+      .map(() => Array(MAZE_WIDTH).fill(1));
 
-    const stack: Position[] = []
-    const start: Position = { x: 1, y: 1 }
-    newMaze[start.y][start.x] = 0
-    stack.push(start)
+    const stack: Position[] = [];
+    const start: Position = { x: 1, y: 1 };
+    newMaze[start.y][start.x] = 0;
+    stack.push(start);
 
     while (stack.length > 0) {
-      const current = stack[stack.length - 1]
+      const current = stack[stack.length - 1];
       const neighbors = [
         { x: current.x + 2, y: current.y },
         { x: current.x - 2, y: current.y },
         { x: current.x, y: current.y + 2 },
         { x: current.x, y: current.y - 2 },
-      ].filter((n) => n.x > 0 && n.x < MAZE_WIDTH - 1 && n.y > 0 && n.y < MAZE_HEIGHT - 1 && newMaze[n.y][n.x] === 1)
+      ].filter(
+        (n) =>
+          n.x > 0 &&
+          n.x < MAZE_WIDTH - 1 &&
+          n.y > 0 &&
+          n.y < MAZE_HEIGHT - 1 &&
+          newMaze[n.y][n.x] === 1
+      );
 
       if (neighbors.length > 0) {
-        const next = neighbors[Math.floor(Math.random() * neighbors.length)]
-        newMaze[next.y][next.x] = 0
-        newMaze[current.y + (next.y - current.y) / 2][current.x + (next.x - current.x) / 2] = 0
-        stack.push(next)
+        const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+        newMaze[next.y][next.x] = 0;
+        newMaze[current.y + (next.y - current.y) / 2][
+          current.x + (next.x - current.x) / 2
+        ] = 0;
+        stack.push(next);
       } else {
-        stack.pop()
+        stack.pop();
       }
     }
 
     // Set exit (randomly choose a side)
-    const side = Math.floor(Math.random() * 4)
-    let exitX, exitY
+    const side = Math.floor(Math.random() * 4);
+    let exitX = 0,
+      exitY = 0;
     switch (side) {
       case 0: // Top
-        exitX = Math.floor(Math.random() * (MAZE_WIDTH - 2)) + 1
-        exitY = 0
-        break
+        exitX = Math.floor(Math.random() * (MAZE_WIDTH - 2)) + 1;
+        exitY = 0;
+        break;
       case 1: // Right
-        exitX = MAZE_WIDTH - 1
-        exitY = Math.floor(Math.random() * (MAZE_HEIGHT - 2)) + 1
-        break
+        exitX = MAZE_WIDTH - 1;
+        exitY = Math.floor(Math.random() * (MAZE_HEIGHT - 2)) + 1;
+        break;
       case 2: // Bottom
-        exitX = Math.floor(Math.random() * (MAZE_WIDTH - 2)) + 1
-        exitY = MAZE_HEIGHT - 1
-        break
+        exitX = Math.floor(Math.random() * (MAZE_WIDTH - 2)) + 1;
+        exitY = MAZE_HEIGHT - 1;
+        break;
       case 3: // Left
-        exitX = 0
-        exitY = Math.floor(Math.random() * (MAZE_HEIGHT - 2)) + 1
-        break
+        exitX = 0;
+        exitY = Math.floor(Math.random() * (MAZE_HEIGHT - 2)) + 1;
+        break;
     }
-    newMaze[exitY][exitX] = 2 // Set exit
+    newMaze[exitY][exitX] = 2; // Set exit
 
-    setMaze(newMaze)
-    setPlayerPos({ x: 1, y: 1 })
-    setGameState("playing")
-  }, [])
+    setMaze(newMaze);
+    setPlayerPos({ x: 1, y: 1 });
+    setGameState("playing");
+  }, []);
 
   const drawMaze = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     maze.forEach((row, y) => {
       row.forEach((cell, x) => {
         if (cell === 1) {
-          ctx.fillStyle = "#22c55e"
-          ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+          ctx.fillStyle = "#22c55e";
+          ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
         } else if (cell === 2) {
-          ctx.fillStyle = "#fbbf24"
-          ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+          ctx.fillStyle = "#fbbf24";
+          ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
         }
-      })
-    })
+      });
+    });
 
     // Draw player
-    ctx.fillStyle = "#3b82f6"
-    ctx.beginPath()
+    ctx.fillStyle = "#3b82f6";
+    ctx.beginPath();
     ctx.arc(
       playerPos.x * CELL_SIZE + CELL_SIZE / 2,
       playerPos.y * CELL_SIZE + CELL_SIZE / 2,
       CELL_SIZE / 3,
       0,
-      Math.PI * 2,
-    )
-    ctx.fill()
-  }, [maze, playerPos])
+      Math.PI * 2
+    );
+    ctx.fill();
+  }, [maze, playerPos]);
 
   const movePlayer = useCallback(
     (dx: number, dy: number) => {
       setPlayerPos((prev) => {
-        const newX = prev.x - dx
-        const newY = prev.y - dy
-        if (newX >= 0 && newX < MAZE_WIDTH && newY >= 0 && newY < MAZE_HEIGHT && maze[newY][newX] !== 1) {
+        const newX = prev.x - dx;
+        const newY = prev.y - dy;
+        if (
+          newX >= 0 &&
+          newX < MAZE_WIDTH &&
+          newY >= 0 &&
+          newY < MAZE_HEIGHT &&
+          maze[newY][newX] !== 1
+        ) {
           if (maze[newY][newX] === 2) {
-            setGameState("won")
+            setGameState("won");
           }
-          return { x: newX, y: newY }
+          return { x: newX, y: newY };
         }
-        return prev
-      })
+        return prev;
+      });
     },
-    [maze],
-  )
+    [maze]
+  );
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       switch (e.key) {
         case "ArrowLeft":
-          movePlayer(-1, 0)
-          break
+          movePlayer(-1, 0);
+          break;
         case "ArrowRight":
-          movePlayer(1, 0)
-          break
+          movePlayer(1, 0);
+          break;
         case "ArrowUp":
-          movePlayer(0, -1)
-          break
+          movePlayer(0, -1);
+          break;
         case "ArrowDown":
-          movePlayer(0, 1)
-          break
+          movePlayer(0, 1);
+          break;
       }
     },
-    [movePlayer],
-  )
+    [movePlayer]
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setLoading(false)
-      generateMaze()
-    }, 1500)
-    return () => clearTimeout(timer)
-  }, [generateMaze])
+      setLoading(false);
+      generateMaze();
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [generateMaze]);
 
   useEffect(() => {
-    drawMaze()
-  }, [drawMaze])
+    drawMaze();
+  }, [drawMaze]);
 
   useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown)
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [handleKeyDown])
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleKeyDown]);
 
   if (loading) {
     return (
@@ -179,7 +196,7 @@ export default function MirrorMaze() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -188,7 +205,10 @@ export default function MirrorMaze() {
         <div className="scanline absolute top-0 left-0 w-full h-full pointer-events-none"></div>
 
         <div className="terminal-header flex items-center justify-between mb-4 border-b border-green-500 pb-2">
-          <Link href="/" className="flex items-center gap-2 hover:text-green-400">
+          <Link
+            href="/"
+            className="flex items-center gap-2 hover:text-green-400"
+          >
             <ArrowLeft className="h-4 w-4" />
             <span>Back to Arcade</span>
           </Link>
@@ -198,7 +218,10 @@ export default function MirrorMaze() {
         <div className="game-container space-y-6">
           <div className="game-info text-center">
             <h1 className="text-2xl font-bold mb-2">Mirror Maze</h1>
-            <p className="text-sm mb-4">Navigate to the yellow exit using arrow keys. Controls are reversed!</p>
+            <p className="text-sm mb-4">
+              Navigate to the yellow exit using arrow keys. Controls are
+              reversed!
+            </p>
           </div>
 
           <div className="flex justify-center">
@@ -212,7 +235,9 @@ export default function MirrorMaze() {
 
           {gameState === "won" && (
             <div className="text-center">
-              <p className="text-xl font-bold mb-4">Congratulations! You've escaped the Mirror Maze!</p>
+              <p className="text-xl font-bold mb-4">
+                Congratulations! You&apos;ve escaped the Mirror Maze!
+              </p>
               <Button
                 onClick={generateMaze}
                 className="px-4 py-2 border border-green-500 hover:bg-green-900 hover:bg-opacity-30"
@@ -229,6 +254,5 @@ export default function MirrorMaze() {
         <p>Use arrow keys to navigate. Remember, the controls are reversed!</p>
       </div>
     </div>
-  )
+  );
 }
-

@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect, useCallback } from "react"
-import Link from "next/link"
-import { ArrowLeft, RefreshCw, Volume2, VolumeX } from "lucide-react"
+import { ArrowLeft, RefreshCw, Volume2, VolumeX } from "lucide-react";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 
 const MORSE_CODE: { [key: string]: string } = {
   A: ".-",
@@ -43,7 +43,7 @@ const MORSE_CODE: { [key: string]: string } = {
   "7": "--...",
   "8": "---..",
   "9": "----.",
-}
+};
 
 const LEVELS = [
   { chars: Object.keys(MORSE_CODE), time: 30 },
@@ -122,7 +122,7 @@ const LEVELS = [
     ],
     time: 60,
   },
-]
+];
 
 const SHORT_WORDS = [
   "AT",
@@ -147,7 +147,7 @@ const SHORT_WORDS = [
   "UP",
   "US",
   "WE",
-]
+];
 
 const COMMON_WORDS = [
   "THE",
@@ -203,36 +203,90 @@ const COMMON_WORDS = [
   "MUCH",
   "SOME",
   "TIME",
-]
+];
 
 export default function MorseCodeTrainer() {
-  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("easy")
-  const [currentLetter, setCurrentLetter] = useState("")
-  const [userInput, setUserInput] = useState("")
-  const [score, setScore] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(LEVELS[0].time)
-  const [gameOver, setGameOver] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [showHint, setShowHint] = useState(false)
-  const [streak, setStreak] = useState(0)
-  const [soundEnabled, setSoundEnabled] = useState(true)
-  const [highScore, setHighScore] = useState(0)
-  const [gameStarted, setGameStarted] = useState(false)
-  const [currentLevel, setCurrentLevel] = useState(0)
-  const [prevInputLength, setPrevInputLength] = useState(0)
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">(
+    "easy"
+  );
+  const [currentLetter, setCurrentLetter] = useState("");
+  const [userInput, setUserInput] = useState("");
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(LEVELS[0].time);
+  const [gameOver, setGameOver] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [showHint, setShowHint] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [highScore, setHighScore] = useState(0);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [currentLevel, setCurrentLevel] = useState(0);
+  const [prevInputLength, setPrevInputLength] = useState(0);
+
+  const playMorseSound = useCallback(
+    (code: string) => {
+      if (!soundEnabled) return;
+
+      const audioContext = new (window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+
+      const dot = 0.1;
+      const dash = dot * 3;
+      const pauseBetweenSigns = dot * 2;
+      const pauseBetweenLetters = dash;
+      const toneDelay = difficulty === "easy" ? 0.125 : 0; // 125ms delay for easy mode
+
+      let startTime = audioContext.currentTime;
+
+      code.split("").forEach((sign) => {
+        const duration =
+          sign === "." ? dot : sign === "-" ? dash : pauseBetweenLetters;
+        if (sign !== " ") {
+          gainNode.gain.setValueAtTime(1, startTime);
+          gainNode.gain.setValueAtTime(1, startTime + duration);
+          gainNode.gain.setValueAtTime(0, startTime + duration + 0.01);
+        }
+        startTime += duration + pauseBetweenSigns + toneDelay;
+      });
+
+      oscillator.start();
+      oscillator.stop(startTime);
+    },
+    [soundEnabled, difficulty]
+  );
 
   const generateNewContent = useCallback(() => {
-    let newContent: string
+    let newContent: string;
     if (difficulty === "easy") {
-      newContent = LEVELS[currentLevel].chars[Math.floor(Math.random() * LEVELS[currentLevel].chars.length)]
+      const level = LEVELS[currentLevel];
+      if ("chars" in level && level.chars) {
+        newContent =
+          level.chars[Math.floor(Math.random() * level.chars.length)];
+      } else {
+        // Fallback to alphabet if chars not available
+        newContent =
+          Object.keys(MORSE_CODE)[
+            Math.floor(Math.random() * Object.keys(MORSE_CODE).length)
+          ];
+      }
     } else if (difficulty === "medium") {
-      newContent = SHORT_WORDS[Math.floor(Math.random() * SHORT_WORDS.length)]
+      newContent = SHORT_WORDS[Math.floor(Math.random() * SHORT_WORDS.length)];
     } else {
-      newContent = COMMON_WORDS[Math.floor(Math.random() * COMMON_WORDS.length)]
+      newContent =
+        COMMON_WORDS[Math.floor(Math.random() * COMMON_WORDS.length)];
     }
-    setCurrentLetter(newContent)
-    setUserInput("")
-    setShowHint(false)
+    setCurrentLetter(newContent);
+    setUserInput("");
+    setShowHint(false);
 
     // Add a 300ms delay before playing the sound
     setTimeout(() => {
@@ -240,194 +294,159 @@ export default function MorseCodeTrainer() {
         newContent
           .split("")
           .map((char) => MORSE_CODE[char])
-          .join(" "),
-      )
-    }, 300)
-  }, [difficulty, currentLevel])
+          .join(" ")
+      );
+    }, 300);
+  }, [difficulty, currentLevel, playMorseSound]);
 
   useEffect(() => {
-    const storedHighScore = localStorage.getItem("morseCodeTrainerHighScore")
+    const storedHighScore = localStorage.getItem("morseCodeTrainerHighScore");
     if (storedHighScore) {
-      setHighScore(Number.parseInt(storedHighScore, 10))
+      setHighScore(Number.parseInt(storedHighScore, 10));
     }
-    const timer = setTimeout(() => setLoading(false), 1500)
-    return () => clearTimeout(timer)
-  }, [])
+    const timer = setTimeout(() => setLoading(false), 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (gameStarted && !gameOver) {
       const timer = setInterval(() => {
         setTimeLeft((prevTime) => {
           if (prevTime <= 1) {
-            clearInterval(timer)
-            setGameOver(true)
-            return 0
+            clearInterval(timer);
+            setGameOver(true);
+            return 0;
           }
-          return prevTime - 1
-        })
-      }, 1000)
-      return () => clearInterval(timer)
+          return prevTime - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
     }
-  }, [gameStarted, gameOver])
-
-  const playMorseSound = useCallback(
-    (code: string) => {
-      if (!soundEnabled) return
-
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-      const oscillator = audioContext.createOscillator()
-      const gainNode = audioContext.createGain()
-
-      oscillator.connect(gainNode)
-      gainNode.connect(audioContext.destination)
-
-      oscillator.type = "sine"
-      oscillator.frequency.setValueAtTime(600, audioContext.currentTime)
-
-      const dot = 0.1
-      const dash = dot * 3
-      const pauseBetweenSigns = dot * 2
-      const pauseBetweenLetters = dash
-      const toneDelay = difficulty === "easy" ? 0.125 : 0 // 125ms delay for easy mode
-
-      let startTime = audioContext.currentTime
-
-      code.split("").forEach((sign, index) => {
-        const duration = sign === "." ? dot : sign === "-" ? dash : pauseBetweenLetters
-        if (sign !== " ") {
-          gainNode.gain.setValueAtTime(1, startTime)
-          gainNode.gain.setValueAtTime(1, startTime + duration)
-          gainNode.gain.setValueAtTime(0, startTime + duration + 0.01)
-        }
-        startTime += duration + pauseBetweenSigns + toneDelay
-      })
-
-      oscillator.start()
-      oscillator.stop(startTime)
-    },
-    [soundEnabled, difficulty],
-  )
+  }, [gameStarted, gameOver]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target.value.replace(/[^.-]/g, "")
-    setUserInput(input)
+    const input = e.target.value.replace(/[^.-]/g, "");
+    setUserInput(input);
 
     if (difficulty === "easy") {
       // Only play sound if new characters are added
       if (input.length > prevInputLength) {
-        playMorseSound(input.slice(prevInputLength))
+        playMorseSound(input.slice(prevInputLength));
       }
 
       if (input === MORSE_CODE[currentLetter]) {
-        setScore((prevScore) => prevScore + 1)
-        setStreak((prevStreak) => prevStreak + 1)
+        setScore((prevScore) => prevScore + 1);
+        setStreak((prevStreak) => prevStreak + 1);
         if (streak + 1 >= 5 && currentLevel < LEVELS.length - 1) {
-          setCurrentLevel((prevLevel) => prevLevel + 1)
-          setTimeLeft(LEVELS[currentLevel + 1].time)
-          setStreak(0)
+          setCurrentLevel((prevLevel) => prevLevel + 1);
+          setTimeLeft(LEVELS[currentLevel + 1].time);
+          setStreak(0);
         }
-        generateNewContent()
+        generateNewContent();
       }
     } else {
       // For medium and hard modes, we need to check if the input matches the morse code for the entire word
       const expectedMorse = currentLetter
         .split("")
         .map((char) => MORSE_CODE[char])
-        .join(" ")
+        .join(" ");
 
       if (input === expectedMorse.replace(/ /g, "")) {
-        setScore((prevScore) => prevScore + currentLetter.length * 2) // More points for longer words
-        setStreak((prevStreak) => prevStreak + 1)
+        setScore((prevScore) => prevScore + currentLetter.length * 2); // More points for longer words
+        setStreak((prevStreak) => prevStreak + 1);
         if (streak + 1 >= 3 && currentLevel < LEVELS.length - 1) {
-          setCurrentLevel((prevLevel) => prevLevel + 1)
-          setTimeLeft(LEVELS[currentLevel + 1].time)
-          setStreak(0)
+          setCurrentLevel((prevLevel) => prevLevel + 1);
+          setTimeLeft(LEVELS[currentLevel + 1].time);
+          setStreak(0);
         }
-        generateNewContent()
+        generateNewContent();
       }
     }
 
     // Update the previous input length
-    setPrevInputLength(input.length)
-  }
+    setPrevInputLength(input.length);
+  };
 
   const replayMorseSound = () => {
     if (difficulty === "easy") {
-      playMorseSound(MORSE_CODE[currentLetter])
+      playMorseSound(MORSE_CODE[currentLetter]);
     } else {
       const morseWord = currentLetter
         .split("")
         .map((char) => MORSE_CODE[char])
-        .join(" ")
-      playMorseSound(morseWord)
+        .join(" ");
+      playMorseSound(morseWord);
     }
-  }
+  };
 
   const resetGame = () => {
-    setGameStarted(false)
-    setGameOver(false)
-    setScore(0)
-    setCurrentLevel(0)
-    setTimeLeft(LEVELS[0].time)
-    setStreak(0)
-  }
+    setGameStarted(false);
+    setGameOver(false);
+    setScore(0);
+    setCurrentLevel(0);
+    setTimeLeft(LEVELS[0].time);
+    setStreak(0);
+  };
 
   const startNewGame = () => {
-    let content: string
+    let content: string;
 
     if (difficulty === "easy") {
-      const availableChars = LEVELS[currentLevel].chars
-      content = availableChars[Math.floor(Math.random() * availableChars.length)]
+      const level = LEVELS[currentLevel];
+      const availableChars =
+        "chars" in level && level.chars ? level.chars : Object.keys(MORSE_CODE);
+      content =
+        availableChars[Math.floor(Math.random() * availableChars.length)];
     } else if (difficulty === "medium") {
-      content = SHORT_WORDS[Math.floor(Math.random() * SHORT_WORDS.length)]
+      content = SHORT_WORDS[Math.floor(Math.random() * SHORT_WORDS.length)];
     } else {
-      content = COMMON_WORDS[Math.floor(Math.random() * COMMON_WORDS.length)]
+      content = COMMON_WORDS[Math.floor(Math.random() * COMMON_WORDS.length)];
     }
 
-    setCurrentLetter(content)
-    setUserInput("")
-    setShowHint(false)
-    setGameStarted(true)
-    setGameOver(false)
-    setTimeLeft(LEVELS[currentLevel].time)
-    setStreak(0)
+    setCurrentLetter(content);
+    setUserInput("");
+    setShowHint(false);
+    setGameStarted(true);
+    setGameOver(false);
+    setTimeLeft(LEVELS[currentLevel].time);
+    setStreak(0);
 
     // Add a delay before playing the sound
     setTimeout(() => {
       if (difficulty === "easy") {
-        playMorseSound(MORSE_CODE[content])
+        playMorseSound(MORSE_CODE[content]);
       } else {
         const morseWord = content
           .split("")
           .map((char) => MORSE_CODE[char])
-          .join(" ")
-        playMorseSound(morseWord)
+          .join(" ");
+        playMorseSound(morseWord);
       }
-    }, 500) // 500ms delay
-  }
+    }, 500); // 500ms delay
+  };
 
   const toggleHint = () => {
-    setShowHint(!showHint)
+    setShowHint(!showHint);
     if (!showHint) {
       playMorseSound(
         currentLetter
           .split("")
           .map((char) => MORSE_CODE[char])
-          .join(" "),
-      )
+          .join(" ")
+      );
     }
-  }
+  };
 
   const renderMorseCode = (code: string) => {
-    return code
-      .split("")
-      .map((char, index) => (
-        <span
-          key={index}
-          className={`inline-block w-4 h-4 mx-1 ${char === "." ? "bg-green-500 rounded-full" : "bg-green-500"}`}
-        ></span>
-      ))
-  }
+    return code.split("").map((char, index) => (
+      <span
+        key={index}
+        className={`inline-block w-4 h-4 mx-1 ${
+          char === "." ? "bg-green-500 rounded-full" : "bg-green-500"
+        }`}
+      ></span>
+    ));
+  };
 
   if (loading) {
     return (
@@ -441,7 +460,7 @@ export default function MorseCodeTrainer() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -450,20 +469,30 @@ export default function MorseCodeTrainer() {
         <div className="scanline absolute top-0 left-0 w-full h-full pointer-events-none"></div>
 
         <div className="terminal-header flex items-center justify-between mb-4 border-b border-green-500 pb-2">
-          <Link href="/" className="flex items-center gap-2 hover:text-green-400">
+          <Link
+            href="/"
+            className="flex items-center gap-2 hover:text-green-400"
+          >
             <ArrowLeft className="h-4 w-4" />
             <span>Back to Arcade</span>
           </Link>
-          <div className="text-xs">games.griffen.codes | Morse Code Trainer v2.2</div>
+          <div className="text-xs">
+            games.griffen.codes | Morse Code Trainer v2.2
+          </div>
         </div>
 
         <div className="game-container space-y-6">
           <div className="game-info text-center">
             <p className="text-xl mb-2">Morse Code Trainer</p>
-            <p className="text-sm">Translate the {difficulty === "easy" ? "letter/number" : "word"} to text!</p>
+            <p className="text-sm">
+              Translate the {difficulty === "easy" ? "letter/number" : "word"}{" "}
+              to text!
+            </p>
             <p className="text-lg mt-2">
-              Difficulty: {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} | Score: {score} | High Score:{" "}
-              {highScore} | Time: {timeLeft}s | Streak: {streak}
+              Difficulty:{" "}
+              {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} |
+              Score: {score} | High Score: {highScore} | Time: {timeLeft}s |
+              Streak: {streak}
             </p>
           </div>
 
@@ -535,7 +564,11 @@ export default function MorseCodeTrainer() {
                   onClick={() => setSoundEnabled(!soundEnabled)}
                   className="px-4 py-2 border border-green-500 hover:bg-green-900 hover:bg-opacity-30"
                 >
-                  {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                  {soundEnabled ? (
+                    <Volume2 className="h-4 w-4" />
+                  ) : (
+                    <VolumeX className="h-4 w-4" />
+                  )}
                 </button>
               </div>
               {showHint && (
@@ -558,7 +591,10 @@ export default function MorseCodeTrainer() {
               <p className="text-2xl mb-4">Game Over!</p>
               <p className="text-xl">Final Score: {score}</p>
               <p className="text-lg">Highest Level: {currentLevel + 1}</p>
-              <p className="text-lg">Difficulty: {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</p>
+              <p className="text-lg">
+                Difficulty:{" "}
+                {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+              </p>
               <button
                 onClick={resetGame}
                 className="mt-4 px-4 py-2 border border-green-500 hover:bg-green-900 hover:bg-opacity-30 flex items-center gap-2 mx-auto"
@@ -572,10 +608,12 @@ export default function MorseCodeTrainer() {
       </div>
 
       <div className="mt-4 text-xs text-center text-green-700">
-        <p>Type "." for dot and "-" for dash, or type the letter/word directly</p>
+        <p>
+          Type &quot;.&quot; for dot and &quot;-&quot; for dash, or type the
+          letter/word directly
+        </p>
         <p>Reach a streak of 5 to advance to the next difficulty level!</p>
       </div>
     </div>
-  )
+  );
 }
-

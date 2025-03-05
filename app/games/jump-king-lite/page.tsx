@@ -2,9 +2,9 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef, useCallback } from "react"
-import Link from "next/link"
 import { ArrowLeft, RefreshCw } from "lucide-react"
+import Link from "next/link"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 const CANVAS_WIDTH = 300
 const CANVAS_HEIGHT = 400
@@ -36,7 +36,7 @@ export default function JumpKingLite() {
   const [jumpAngle, setJumpAngle] = useState(0)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [loading, setLoading] = useState(true)
-  const animationFrameRef = useRef<number>()
+  const animationFrameRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1500)
