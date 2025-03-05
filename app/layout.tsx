@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/next';
 import type { Metadata } from "next";
 import { Space_Mono } from "next/font/google";
 import type React from "react";
@@ -21,7 +22,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${spaceMono.className}  antialiased`}>{children}</body>
+      <body className={`${spaceMono.className}  antialiased`}>
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
