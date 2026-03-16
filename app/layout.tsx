@@ -13,6 +13,28 @@ export const metadata: Metadata = {
   title: "The Arcade",
   description:
     "A showcase of retro terminal-style games for the web built on Next and React.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  openGraph: {
+    title: "The Arcade",
+    description: "A collection of 38 retro-inspired games with a terminal aesthetic. Play classic games with a nostalgic twist.",
+    type: "website",
+    url: "/",
+    images: [
+      {
+        url: "/og-image.svg",
+        width: 1200,
+        height: 630,
+        alt: "The Arcade - Retro Terminal Games",
+        type: "image/svg+xml",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "The Arcade",
+    description: "38 retro-inspired games with a terminal aesthetic. Insert coin to play!",
+    images: ["/twitter-image.svg"],
+  },
 };
 
 export default function RootLayout({
