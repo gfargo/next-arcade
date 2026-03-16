@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   title: "The Arcade",
   description:
     "A showcase of retro terminal-style games for the web built on Next and React.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  metadataBase: new URL("https://arcade.griffen.codes"),
   openGraph: {
     title: "The Arcade",
     description: "A collection of 38 retro-inspired games with a terminal aesthetic. Play classic games with a nostalgic twist.",
